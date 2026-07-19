@@ -1,0 +1,72 @@
+# UAV Cyber Range Project — Status Summary (Team 1 — UAV Platform)
+
+## System Info
+- Laptop: Dell Latitude 5400, i7-8665U, 16GB RAM, Intel UHD 620 (no dedicated GPU)
+- Windows 11 24H2
+- WSL2, Ubuntu 24.04.4 LTS (hostname: DESKTOP-BI58S1U, user: kali)
+- PX4: switched from `v1.18.0-alpha1` to stable `v1.15.4` (alpha had a Takeoff button bug)
+- Gazebo: Harmonic (`gz_x500` model)
+- QGroundControl: 5.0.8, launched from Windows Desktop path via WSL
+  (`/mnt/c/Users/Mateen C/Desktop/QGroundControl-x86_64.AppImage`)
+
+---
+
+## Week 1 — COMPLETED
+
+### Task: UAV Simulation Infrastructure
+- Installed Ubuntu, Docker, PX4, Gazebo, QGroundControl
+- Fixed critical bug: QGC's Takeoff button returned `MAV_RESULT_DENIED` on PX4 v1.18-alpha
+  - Root cause: race condition in alpha build's arm+takeoff command sequence
+  - Fix: downgraded to PX4 v1.15.4 (stable) + launch Gazebo standalone before PX4 in standalone mode
+- Working one-liner launch command:
+```
+pkill -9 -f gz; pkill -9 -f px4; sleep 2; gz sim -r default.sdf & sleep 10 && cd ~/PX4-Autopilot && PX4_GZ_STANDALONE=1 make px4_sitl gz_x500
+```
+- Confirmed: autonomous takeoff and landing working, RTL working, mission items working
+- Demo video and installation guide: pending final recording
+
+### Task: Real-time log generation
+- PX4 flight logger (`.ulg` files): working via `logger start`
+- Live log monitoring commands set up (watch, tail -f)
+- MAVLink packet capture (Wireshark): working
+  - Key finding: WSL2 routes true loopback traffic through interface **`loopback0`**, not `lo`
+  - MAVLink protocol dissector (`mavlink_common.lua`) installed to `~/.local/lib/wireshark/plugins/`
+  - Filter `mavlink_proto` or `udp.port == 14550` on `loopback0` shows decoded MAVLink messages
+
+### MAVLink v1/v2 switching (for study/comparison)
+- Parameter: `MAV_PROTO_VER` (0=auto, 1=force v1, 2=force v2)
+- **Important**: live-switching via `mavlink stop-all` / `mavlink start` caused connection issues —
+  safer to set the parameter then do a full relaunch instead
+- Confirmed: GCS link auto-negotiates to v2 when QGC connects; unused links (companion/gimbal) stay v1 by default since nothing negotiates with them — this is expected behavior, not a bug
+
+---
+
+## Week 2 — IN PROGRESS (started)
+
+Per execution plan, Week 2 goals for Team 1 (UAV Platform):
+- **Multi-UAV simulation**: spawn multiple PX4 instances with Gazebo Harmonic using `-i` instance flag and `PX4_GZ_MODEL_POSE` for spacing
+- **Swarm launch**: coordinate arm/takeoff across multiple instances via MAVProxy multi-master connection
+- **Different missions**: assign separate `.plan` mission files per drone via QGC Plan view or MAVProxy `wp load`
+- **Output target**: working multi-drone simulator, demo video of swarm takeoff + distinct mission routes
+
+### Known risk
+Running 3× PX4 instances + Gazebo simultaneously will stress the 16GB RAM significantly more than single-drone setup. Recommend testing with 2 drones first before scaling to 3.
+
+---
+
+## Other systems context (for reference, not blocking)
+
+- Disk space cleanup done: removed ~40GB Windows.old + update cleanup, freed disk from 30GB → 66GB
+- Laptop charger issue diagnosed: original charger was 60.6W/19V (underpowered vs required 65W/19.5V, plus possibly faulty — caused power flicker); switched to a 19.5V/6.7A (~130W) charger which resolved both the lag-while-charging and flicker issues
+- VMware Kali VM exists but not yet actively used for Team 2 (attack emulation) work
+
+---
+
+## Upcoming weeks (per execution plan, not yet started)
+- **Week 3**: Send UAV telemetry (Team 1), inject attacks (Team 2), forward logs (Team 3), detect attacks (Team 4), respond (Team 5), integrate all teams (Team 6)
+- **Week 4**: Final demos, integrated Cyber Range, final presentation
+
+---
+
+## How to use this file
+Upload this `.md` file directly into a new AI chat as context, or copy-paste its contents at the start of a new conversation to continue from here without re-explaining the whole history.
